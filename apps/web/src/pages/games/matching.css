@@ -1,0 +1,479 @@
+/*
+ * Eşleştirme board. English and Turkish tiles face each other across a gap.
+ * Every tile has a connector ("port") on the edge facing the other column, and
+ * a matched pair is joined by a line drawn across the gap, like a matching
+ * exercise on paper. Both columns share the board's rows (subgrid), so the
+ * tiles stay aligned when a long meaning wraps.
+ *
+ * Ports, lines and the hub are decorative: each tile's name, its pressed and
+ * disabled states and the status line carry the meaning. A matched pair also
+ * shows a number and a rejected meaning a cross, so no state relies on color.
+ * Movement runs only without reduced motion, and nothing loops.
+ */
+
+.match-stage {
+  container: match-stage / inline-size;
+}
+
+.match-board {
+  --match-gap: 2.25rem; /* the column gap the lines cross */
+  --match-port: 1.375rem;
+  --match-pad: 0.75rem; /* tile padding; the port side adds half a port */
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--match-gap) minmax(0, 1fr);
+  /* Narrow boards: each row is as tall as its own pair. Wider: one shared height. */
+  grid-template-rows: auto repeat(var(--match-rows, 5), auto);
+  row-gap: 0.625rem;
+  padding: 1rem 0.875rem 1.25rem;
+}
+
+.match-column {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  min-width: 0;
+}
+.match-column[data-side='en'] {
+  grid-column: 1;
+}
+.match-column[data-side='tr'] {
+  grid-column: 3;
+}
+
+/* The column names sit beside the hub, so the header reads "İngilizce ⇄ Türkçe". */
+.match-label {
+  align-self: center;
+  margin-bottom: 0.25rem;
+}
+.match-column[data-side='en'] .match-label {
+  justify-self: end;
+}
+.match-column[data-side='tr'] .match-label {
+  justify-self: start;
+}
+
+/*
+ * The hub between the column names: its ring fills as pairs are matched, and it
+ * turns into a check once every pair is (with the shared one-time `celebrate`).
+ */
+.match-hub {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  place-self: center;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.25rem;
+  border-radius: 999px;
+  background-color: var(--sem-surface-raised);
+  box-shadow:
+    0 8px 16px -10px var(--mode-glow),
+    0 1px 2px rgb(13 19 33 / 0.1);
+  color: var(--mode-ink);
+  font-size: 0.875rem;
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard);
+}
+.match-hub-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+  fill: none;
+  stroke-width: 3;
+}
+.match-hub-track {
+  stroke: var(--mode-soft);
+}
+.match-hub-value {
+  stroke: var(--mode-deep);
+  stroke-dasharray: var(--match-progress, 0) 1;
+  transition: stroke-dasharray var(--duration-slow) var(--ease-standard);
+}
+.match-hub[data-complete] {
+  background-color: var(--sem-success);
+  color: #ffffff;
+}
+.match-hub[data-complete] .match-hub-ring {
+  display: none;
+}
+
+/* ---- Tiles ------------------------------------------------------------------ */
+
+/* The button is the hit target and never moves; its face lifts and presses. */
+.match-tile {
+  position: relative;
+  z-index: 1; /* above the lines */
+  display: grid;
+  min-width: 0;
+  border-radius: var(--radius-card);
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.match-tile:disabled {
+  cursor: default;
+}
+
+/* A raised game tile: white, a faint wash of the game's tint, and a solid edge below. */
+.match-face {
+  --match-edge: color-mix(in srgb, var(--mode-deep) 32%, #c8d0dc);
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0.625rem var(--match-pad);
+  border: 1px solid color-mix(in srgb, var(--mode-solid) 24%, var(--sem-line));
+  border-radius: inherit;
+  background-color: var(--sem-surface-raised);
+  background-image: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0) 40%,
+    color-mix(in srgb, var(--mode-tint) 85%, transparent)
+  );
+  box-shadow:
+    0 3px 0 var(--match-edge),
+    0 14px 24px -16px var(--mode-glow),
+    0 1px 2px rgb(13 19 33 / 0.06);
+  color: var(--sem-fg);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    translate var(--duration-base) var(--ease-standard);
+}
+.match-tile[data-side='en'] .match-face {
+  padding-inline-end: calc(var(--match-port) / 2 + var(--match-pad));
+}
+.match-tile[data-side='tr'] .match-face {
+  padding-inline-start: calc(var(--match-port) / 2 + var(--match-pad));
+}
+
+.match-word {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.match-word-en {
+  font-size: 1.0625rem;
+  line-height: 1.25;
+}
+.match-word-tr {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+/* The slashes between meanings are quieter than the meanings themselves. */
+.match-sep {
+  color: var(--sem-fg-muted);
+  font-weight: 500;
+}
+
+/* ---- Ports ------------------------------------------------------------------ */
+
+.match-port {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--match-port);
+  height: var(--match-port);
+  border-radius: 999px;
+  background-color: var(--sem-surface-raised);
+  box-shadow:
+    inset 0 0 0 2px var(--mode-line),
+    0 1px 3px rgb(13 19 33 / 0.16);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+.match-tile[data-side='en'] .match-port {
+  right: 0;
+  translate: 50% -50%;
+}
+.match-tile[data-side='tr'] .match-port {
+  left: 0;
+  translate: -50% -50%;
+}
+/* An open port shows its socket pin. */
+.match-port:empty::after {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: inherit;
+  background-color: var(--mode-line);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* ---- States ----------------------------------------------------------------- */
+
+/* The chosen English word: picked up, outlined twice (border and halo), port filled. */
+.match-tile[data-state='selected'] .match-face {
+  --match-edge: var(--mode-deep);
+  border-color: var(--mode-deep);
+  background-color: var(--mode-tint);
+  background-image: none;
+  box-shadow:
+    inset 0 0 0 1px var(--mode-deep),
+    0 3px 0 var(--match-edge),
+    0 0 0 5px color-mix(in srgb, var(--mode-solid) 32%, transparent),
+    0 20px 30px -18px var(--mode-glow);
+}
+.match-tile[data-state='selected'] .match-port {
+  background-color: var(--mode-deep);
+  box-shadow:
+    0 0 0 3px var(--sem-surface-raised),
+    0 4px 10px -4px var(--mode-glow);
+}
+.match-tile[data-state='selected'] .match-port::after {
+  background-color: #ffffff;
+}
+
+/* While an English word is chosen, every open meaning's socket is ready for it. */
+.match-tile[data-ready] .match-port {
+  box-shadow:
+    inset 0 0 0 2px var(--mode-deep),
+    0 1px 3px rgb(13 19 33 / 0.16);
+}
+.match-tile[data-ready] .match-port::after {
+  background-color: var(--mode-solid);
+}
+
+/* A matched pair settles: flat, in the success tint, its port numbered. */
+.match-tile[data-state='matched'] .match-face {
+  --match-edge: color-mix(in srgb, var(--sem-success) 28%, #ffffff);
+  border-color: color-mix(in srgb, var(--sem-success) 40%, #ffffff);
+  background-color: var(--sem-success-soft);
+  background-image: none;
+  box-shadow: 0 1px 0 var(--match-edge);
+}
+.match-tile[data-state='matched'] .match-port {
+  background-color: var(--sem-success);
+  box-shadow:
+    0 0 0 3px var(--sem-surface-raised),
+    0 3px 8px -3px rgb(18 107 66 / 0.5);
+}
+
+/* A rejected meaning: the review highlighter (not knowing is not an error) and a cross. */
+.match-tile[data-state='missed'] .match-face {
+  --match-edge: color-mix(in srgb, var(--sem-on-highlight) 35%, var(--sem-highlight));
+  border-color: color-mix(in srgb, var(--sem-on-highlight) 45%, transparent);
+  background-color: var(--sem-highlight);
+  background-image: none;
+  color: var(--sem-on-highlight);
+}
+.match-tile[data-state='missed'] .match-sep {
+  color: inherit;
+}
+.match-tile[data-state='missed'] .match-port {
+  background-color: var(--sem-on-highlight);
+  box-shadow: 0 0 0 3px var(--sem-surface-raised);
+  font-size: 0.8125rem;
+}
+
+/* Open tiles take the game's tint on hover (hover-capable pointers only, so
+   touch never keeps a sticky highlight) and press in while held. */
+@media (hover: hover) {
+  .match-tile[data-state='idle']:hover .match-face {
+    --match-edge: color-mix(in srgb, var(--mode-deep) 55%, #8a9bb0);
+    border-color: var(--mode-line);
+    background-color: var(--mode-tint);
+    box-shadow:
+      0 3px 0 var(--match-edge),
+      0 18px 28px -16px var(--mode-glow),
+      0 1px 2px rgb(13 19 33 / 0.06);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .match-tile[data-state='idle']:hover .match-face {
+    translate: 0 -2px;
+  }
+}
+.match-tile[data-state='idle']:active .match-face {
+  background-color: var(--mode-soft);
+  box-shadow:
+    0 1px 0 var(--match-edge),
+    0 6px 12px -10px var(--mode-glow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .match-tile[data-state='selected'] .match-face {
+    translate: 0 -2px;
+  }
+  .match-tile[data-state='idle']:active .match-face {
+    translate: 0 2px;
+  }
+
+  /* A found pair settles with one small pop while its line is drawn across. */
+  .match-tile[data-state='matched'] .match-face {
+    animation: match-settle 420ms var(--ease-emphasized);
+  }
+  .match-tile[data-state='matched'] .match-port,
+  .match-tile[data-state='selected'] .match-port {
+    animation: match-pop var(--duration-base) var(--ease-emphasized);
+  }
+  .match-link path {
+    stroke-dasharray: 1 2;
+    animation: match-draw var(--duration-slow) var(--ease-standard) both;
+  }
+
+  /* A rejected meaning shakes once, like a shaken head. */
+  .match-tile[data-state='missed'] .match-face {
+    animation: match-shake 380ms var(--ease-standard);
+  }
+
+  .match-link-preview {
+    animation: fade-in var(--duration-fast) var(--ease-standard);
+  }
+}
+
+@keyframes match-settle {
+  40% {
+    scale: 1.04;
+  }
+}
+@keyframes match-pop {
+  from {
+    scale: 0.4;
+  }
+}
+/* Paths use pathLength="1"; the 1-unit dash grows from the English side. */
+@keyframes match-draw {
+  from {
+    stroke-dashoffset: 1.02;
+  }
+}
+@keyframes match-shake {
+  20% {
+    translate: -6px 0;
+  }
+  40% {
+    translate: 5px 0;
+  }
+  60% {
+    translate: -3px 0;
+  }
+  80% {
+    translate: 2px 0;
+  }
+}
+
+/* ---- Lines ------------------------------------------------------------------ */
+
+/* Below the tiles; a white casing lets crossing lines pass over one another. */
+.match-links {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.match-links path {
+  fill: none;
+  stroke-linecap: round;
+}
+.match-link-casing {
+  stroke: var(--sem-surface-raised);
+  stroke-width: 7;
+}
+.match-link-line {
+  stroke: var(--sem-success);
+  stroke-width: 2.75;
+}
+/* The connection a click would try: dotted, in the game's color. */
+.match-link-preview {
+  stroke: var(--mode-deep);
+  stroke-width: 2.5;
+  stroke-dasharray: 0 6.5;
+}
+
+/* ---- Wider boards ------------------------------------------------------------ */
+
+@container match-stage (min-width: 30rem) {
+  .match-board {
+    --match-gap: 4rem;
+    --match-pad: 1rem;
+    grid-template-rows: auto repeat(var(--match-rows, 5), 1fr);
+    row-gap: 0.75rem;
+    padding: 1.5rem 1.5rem 1.75rem;
+  }
+  .match-face {
+    min-height: 3.5rem;
+    padding-block: 0.75rem;
+  }
+  .match-word-en {
+    font-size: 1.1875rem;
+  }
+  .match-word-tr {
+    font-size: 1rem;
+  }
+  .match-hub {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.05rem;
+  }
+}
+
+@container match-stage (min-width: 44rem) {
+  .match-board {
+    --match-gap: 6rem;
+    --match-port: 1.625rem;
+    --match-pad: 1.125rem;
+    row-gap: 0.875rem;
+    padding: 2rem;
+  }
+  .match-face {
+    min-height: 3.875rem;
+  }
+  .match-word-en {
+    font-size: 1.3125rem;
+  }
+  .match-word-tr {
+    font-size: 1.0625rem;
+  }
+  .match-hub {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.2rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .match-face {
+    border-color: ButtonText;
+  }
+  .match-tile[data-state='selected'] .match-face {
+    outline: 3px solid Highlight;
+    outline-offset: -5px;
+  }
+  .match-tile[data-state='matched'] .match-face {
+    border-style: dashed;
+  }
+  .match-port,
+  .match-hub {
+    border: 1px solid CanvasText;
+  }
+  .match-link-line,
+  .match-link-preview,
+  .match-hub-value {
+    stroke: CanvasText;
+  }
+  .match-link-casing {
+    stroke: Canvas;
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "vocabulary-platform",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "engines": {
+    "node": "^24.11.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "local:setup": "node scripts/local.js setup",
+    "local:dev": "node scripts/local.js dev",
+    "local:stop": "node scripts/local.js stop",
+    "local:test:integration": "node scripts/local.js test",
+    "test:local": "node --test scripts/local.test.js",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test:dev && npm run test --workspaces",
+    "test:dev": "node --test scripts/dev.test.js scripts/dev-processes.test.js scripts/local.test.js",
+    "test:integration": "npm run test:integration -w apps/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}

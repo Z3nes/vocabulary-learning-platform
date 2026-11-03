@@ -1,0 +1,213 @@
+/*
+ * Study mode identities. Every study mode and practice game has its own hue, so
+ * the modes are recognizable at a glance while sharing one component system.
+ * Study modes use cool hues (blue, indigo, teal, violet; targeted review keeps
+ * the amber highlighter); practice games use warmer, livelier ones.
+ *
+ * Roles (set on any element with `data-mode`, inherited by its children):
+ *   --mode-ink    text and icons on the tints and on white (≥ 4.5:1)
+ *   --mode-tint   quiet background
+ *   --mode-soft   stronger tint for illustrations and selected states
+ *   --mode-solid  vivid decorative color (gradients, art, glows; never text)
+ *   --mode-deep   filled controls with white text (≥ 4.5:1)
+ * Contrast is asserted by src/styles/modes.contrast.test.ts.
+ *
+ * Color is never the only cue: every mode is also named in text and has a glyph.
+ */
+
+[data-mode='flashcards'] {
+  --mode-ink: #0b4a9a;
+  --mode-tint: #eaf2fe;
+  --mode-soft: #d6e6fd;
+  --mode-solid: #3b82f6;
+  --mode-deep: #1d4ed8;
+}
+
+[data-mode='written'] {
+  --mode-ink: #3730a3;
+  --mode-tint: #eeeefe;
+  --mode-soft: #dedcfc;
+  --mode-solid: #6366f1;
+  --mode-deep: #4338ca;
+}
+
+[data-mode='listening'] {
+  --mode-ink: #0b5d57;
+  --mode-tint: #e4f6f3;
+  --mode-soft: #c8ede7;
+  --mode-solid: #14b8a6;
+  --mode-deep: #0f766e;
+}
+
+[data-mode='review'] {
+  --mode-ink: #7a4100;
+  --mode-tint: #fdf3d7;
+  --mode-soft: #fbe5a6;
+  --mode-solid: #f59e0b;
+  --mode-deep: #b45309;
+}
+
+[data-mode='mixed'] {
+  --mode-ink: #5b21b6;
+  --mode-tint: #f3edfe;
+  --mode-soft: #e6dafd;
+  --mode-solid: #8b5cf6;
+  --mode-deep: #6d28d9;
+}
+
+[data-mode='quiz'] {
+  --mode-ink: #9f1239;
+  --mode-tint: #ffedf1;
+  --mode-soft: #fdd5de;
+  --mode-solid: #fb7185;
+  --mode-deep: #be123c;
+}
+
+[data-mode='matching'] {
+  --mode-ink: #155e75;
+  --mode-tint: #e6f7fb;
+  --mode-soft: #c6eef7;
+  --mode-solid: #22d3ee;
+  --mode-deep: #0e7490;
+}
+
+[data-mode='memory'] {
+  --mode-ink: #86198f;
+  --mode-tint: #fcecfe;
+  --mode-soft: #f6d4fb;
+  --mode-solid: #e879f9;
+  --mode-deep: #a21caf;
+}
+
+[data-mode='assembly'] {
+  --mode-ink: #9a3412;
+  --mode-tint: #fff1e6;
+  --mode-soft: #ffdcc2;
+  --mode-solid: #fb923c;
+  --mode-deep: #c2410c;
+}
+
+[data-mode='word-search'] {
+  --mode-ink: #065f46;
+  --mode-tint: #e5f7ef;
+  --mode-soft: #c4eedb;
+  --mode-solid: #34d399;
+  --mode-deep: #047857;
+}
+
+[data-mode='crossword'] {
+  --mode-ink: #3f6212;
+  --mode-tint: #f0f8e2;
+  --mode-soft: #dcefbd;
+  --mode-solid: #84cc16;
+  --mode-deep: #3f6212;
+}
+
+/* Derived roles shared by every mode. */
+[data-mode] {
+  --mode-gradient: linear-gradient(135deg, var(--mode-solid) 0%, var(--mode-deep) 100%);
+  --mode-glow: color-mix(in srgb, var(--mode-solid) 38%, transparent);
+  --mode-line: color-mix(in srgb, var(--mode-solid) 45%, var(--sem-line));
+}
+
+/* ---- Mode illustrations (components/ui/ModeArt.tsx) ---------------------------- */
+
+/* Layered, so utilities on the same element (position, size) still apply. */
+@layer components {
+  /* The tinted stage behind an illustration: the mode tint, a soft light and a dot grid. */
+  .mode-art-stage {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(16rem 9rem at 85% 0%, var(--mode-glow), transparent 70%),
+      radial-gradient(
+        12rem 8rem at 0% 100%,
+        color-mix(in srgb, var(--mode-soft) 80%, transparent),
+        transparent 70%
+      ),
+      var(--mode-tint);
+  }
+  .mode-art-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--mode-deep) 16%, transparent) 1px,
+      transparent 1.3px
+    );
+    background-size: 13px 13px;
+    mask-image: linear-gradient(to bottom, #000, transparent 90%);
+  }
+
+  .ma-paper {
+    fill: #ffffff;
+  }
+  .ma-shadow {
+    fill: var(--mode-deep);
+    opacity: 0.13;
+  }
+  .ma-tint {
+    fill: var(--mode-tint);
+  }
+  .ma-soft {
+    fill: var(--mode-soft);
+  }
+  .ma-solid {
+    fill: var(--mode-solid);
+  }
+  .ma-deep {
+    fill: var(--mode-deep);
+  }
+  .ma-ink {
+    fill: var(--mode-ink);
+  }
+  .ma-stroke,
+  .ma-stroke-solid,
+  .ma-stroke-soft,
+  .ma-stroke-paper {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .ma-stroke {
+    stroke: var(--mode-deep);
+    stroke-width: 2.2;
+  }
+  .ma-stroke-solid {
+    stroke: var(--mode-solid);
+    stroke-width: 2.6;
+  }
+  .ma-stroke-soft {
+    stroke: var(--mode-deep);
+    stroke-width: 1.6;
+    opacity: 0.45;
+  }
+  .ma-stroke-paper {
+    stroke: #ffffff;
+    stroke-width: 2.3;
+  }
+  .ma-text {
+    fill: var(--mode-ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 750;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  .ma-text-sm {
+    font-size: 9.5px;
+  }
+  .ma-text-lg {
+    font-size: 14px;
+  }
+  .ma-text-xs {
+    font-size: 5.5px;
+    font-weight: 700;
+    text-anchor: start;
+  }
+  .ma-text-paper {
+    fill: #ffffff;
+  }
+}

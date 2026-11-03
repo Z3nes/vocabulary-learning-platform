@@ -1,0 +1,248 @@
+/*
+ * Design tokens — the single source of truth for the visual system.
+ *
+ * Layer 1: brand palette and scales (@theme) — raw values.
+ * Layer 2: semantic roles per surface ([data-surface]) — what components use.
+ * Layer 3: Tailwind color utilities mapped to the roles (@theme inline), so
+ *          `bg-surface`, `text-fg`, `bg-action` … adapt to the surrounding surface.
+ *
+ * Contrast requirements for every semantic pair are asserted by
+ * src/styles/tokens.contrast.test.ts. Change a value here, then run `npm test`.
+ */
+
+@theme {
+  /* Drop Tailwind's default palette: only the colors below exist. */
+  --color-*: initial;
+
+  /* Brand palette — temporary values until official university assets are provided. */
+  --color-navy-950: #062f5a;
+  --color-navy-900: #083b70;
+  --color-navy-800: #0a4885;
+  --color-blue-700: #0e4f8f;
+  --color-blue-600: #1262b0;
+  --color-blue-300: #7cbbff;
+  --color-blue-200: #a8d2ff;
+  --color-blue-50: #e8f1fb;
+  --color-ink: #0d1321;
+  --color-charcoal: #171b22;
+  --color-charcoal-800: #222833;
+  --color-paper: #f4f6fb;
+  --color-white: #ffffff;
+
+  /* Typography — Inter Variable is self-hosted with its optical-size axis, so large
+     titles get the tighter "display" cut automatically (latin-ext covers ç ğ ı İ ö ş ü). */
+  --font-sans: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* English vocabulary is set like a dictionary headword (the same stack as /tanitim). */
+  --font-headword:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'URW Palladio L', P052,
+    Georgia, 'Noto Serif', serif;
+
+  --text-display: clamp(2.25rem, 1.55rem + 2.6vw, 3.25rem);
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 760;
+  --text-h1: clamp(1.875rem, 1.45rem + 1.6vw, 2.5rem);
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.03em;
+  --text-h1--font-weight: 740;
+  --text-h2: clamp(1.4rem, 1.2rem + 0.75vw, 1.8rem);
+  --text-h2--line-height: 1.2;
+  --text-h2--letter-spacing: -0.022em;
+  --text-h2--font-weight: 700;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.32;
+  --text-h3--letter-spacing: -0.014em;
+  --text-h3--font-weight: 660;
+  --text-h4: 1.0625rem;
+  --text-h4--line-height: 1.4;
+  --text-h4--letter-spacing: -0.006em;
+  --text-h4--font-weight: 640;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.45;
+  --text-caption--letter-spacing: 0.01em;
+  --text-caption--font-weight: 560;
+
+  /* Shape and depth: soft, layered shadows tinted with the ink color. */
+  --radius-control: 0.75rem;
+  --radius-card: 1.125rem;
+  --radius-panel: 1.625rem;
+  --shadow-card: 0 1px 2px rgb(13 19 33 / 0.05), 0 2px 8px -2px rgb(13 19 33 / 0.07);
+  --shadow-raised:
+    0 2px 4px -1px rgb(13 19 33 / 0.06), 0 14px 28px -8px rgb(13 19 33 / 0.16),
+    0 0 0 1px rgb(13 19 33 / 0.02);
+  --shadow-float: 0 30px 60px -20px rgb(13 19 33 / 0.3), 0 10px 20px -10px rgb(13 19 33 / 0.12);
+  --shadow-overlay: 0 24px 48px -12px rgb(13 19 33 / 0.34);
+  /* Primary actions: a top sheen and a soft colored drop shadow. */
+  --shadow-action:
+    inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 2px rgb(13 19 33 / 0.14),
+    0 8px 18px -8px rgb(18 98 176 / 0.6);
+  --shadow-action-hover:
+    inset 0 1px 0 rgb(255 255 255 / 0.2), 0 2px 4px rgb(13 19 33 / 0.12),
+    0 14px 26px -10px rgb(18 98 176 / 0.7);
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.15);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+:root {
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 360ms;
+}
+
+/* ---- Semantic roles per surface ------------------------------------------ */
+
+:root,
+[data-surface='light'] {
+  color-scheme: light;
+  --sem-surface: #f4f6fb;
+  --sem-surface-raised: #ffffff;
+  --sem-surface-sunken: #ebeff6;
+  --sem-fg: #0d1321;
+  --sem-fg-muted: #3b4557;
+  --sem-accent: #1262b0;
+  --sem-accent-hover: #0e4f8f;
+  --sem-accent-soft: #e7f0fd;
+  --sem-on-accent-soft: #0a3a75;
+  --sem-line: #dfe4ed;
+  --sem-line-strong: #6e798b;
+  --sem-focus: #1262b0;
+  --sem-action: #1262b0;
+  --sem-action-hover: #0e4f8f;
+  --sem-on-action: #ffffff;
+  --sem-selected: #1262b0;
+  --sem-on-selected: #ffffff;
+  --sem-selected-indicator: #083b70;
+  --sem-danger: #b42318;
+  --sem-danger-soft: #fdecea;
+  --sem-danger-action: #b42318;
+  --sem-danger-action-hover: #991b1b;
+  --sem-on-danger-action: #ffffff;
+  --sem-success: #126b42;
+  --sem-success-soft: #e3f5eb;
+  /* Highlighter tint for words that need review: not knowing a word is not an error. */
+  --sem-highlight: #fdf0c8;
+  --sem-on-highlight: #6b4300;
+  --sem-disabled: #e4e8ef;
+  --sem-on-disabled: #4a5361;
+}
+
+/*
+ * Charcoal surface. Primary blue #1262b0 is fine as a FILL with white text
+ * (6.18:1) but not as TEXT on charcoal (2.80:1), so links, focus rings and
+ * active-state indicators use the lighter blues (#7cbbff / #a8d2ff, >8:1).
+ */
+[data-surface='dark'] {
+  color-scheme: dark;
+  --sem-surface: #171b22;
+  --sem-surface-raised: #222833;
+  --sem-surface-sunken: #101114;
+  --sem-fg: #e6eaf0;
+  --sem-fg-muted: #c3ccd8;
+  --sem-accent: #7cbbff;
+  --sem-accent-hover: #a8d2ff;
+  --sem-accent-soft: #1f2a3a;
+  --sem-on-accent-soft: #e8f1fb;
+  --sem-line: #343b47;
+  --sem-line-strong: #8a94a3;
+  --sem-focus: #a8d2ff;
+  --sem-action: #1262b0;
+  --sem-action-hover: #1a6dbf;
+  --sem-on-action: #ffffff;
+  --sem-selected: #1262b0;
+  --sem-on-selected: #ffffff;
+  /* The fill alone is 2.80:1 against charcoal; this indicator carries the ≥3:1 state cue. */
+  --sem-selected-indicator: #7cbbff;
+  --sem-danger: #ff9b8f;
+  --sem-danger-soft: #3a2226;
+  --sem-danger-action: #ff9b8f;
+  --sem-danger-action-hover: #ffb4ab;
+  --sem-on-danger-action: #101114;
+  --sem-success: #6fd3a0;
+  --sem-success-soft: #1b3328;
+  --sem-highlight: #3a2f17;
+  --sem-on-highlight: #ffd88a;
+  --sem-disabled: #2a303b;
+  --sem-on-disabled: #a3adba;
+}
+
+/* Institutional navy surface: headers and emphasis panels. */
+[data-surface='navy'] {
+  color-scheme: dark;
+  --sem-surface: #083b70;
+  --sem-surface-raised: #0a4885;
+  --sem-surface-sunken: #062f5a;
+  --sem-fg: #ffffff;
+  --sem-fg-muted: #d6e4f3;
+  --sem-accent: #a8d2ff;
+  --sem-accent-hover: #ffffff;
+  --sem-accent-soft: #0e5799;
+  --sem-on-accent-soft: #ffffff;
+  --sem-line: #2a5f96;
+  --sem-line-strong: #9dbde0;
+  --sem-focus: #ffffff;
+  --sem-action: #ffffff;
+  --sem-action-hover: #e8f1fb;
+  --sem-on-action: #083b70;
+  --sem-selected: #ffffff;
+  --sem-on-selected: #083b70;
+  --sem-selected-indicator: #a8d2ff;
+  --sem-danger: #ffb4ab;
+  --sem-danger-soft: #3d2a4a;
+  --sem-danger-action: #ffb4ab;
+  --sem-danger-action-hover: #ffc2ba;
+  --sem-on-danger-action: #101114;
+  --sem-success: #8ee0b5;
+  --sem-success-soft: #0d4560;
+  --sem-highlight: #5a4512;
+  --sem-on-highlight: #ffe6ad;
+  --sem-disabled: #1d4f82;
+  --sem-on-disabled: #c7d6e8;
+}
+
+[data-surface] {
+  background-color: var(--sem-surface);
+  color: var(--sem-fg);
+}
+
+/* ---- Tailwind utilities bound to the semantic roles ----------------------- */
+
+@theme inline {
+  --color-surface: var(--sem-surface);
+  --color-surface-raised: var(--sem-surface-raised);
+  --color-surface-sunken: var(--sem-surface-sunken);
+  --color-fg: var(--sem-fg);
+  --color-fg-muted: var(--sem-fg-muted);
+  --color-accent: var(--sem-accent);
+  --color-accent-hover: var(--sem-accent-hover);
+  --color-accent-soft: var(--sem-accent-soft);
+  --color-on-accent-soft: var(--sem-on-accent-soft);
+  --color-line: var(--sem-line);
+  --color-line-strong: var(--sem-line-strong);
+  --color-focus: var(--sem-focus);
+  --color-action: var(--sem-action);
+  --color-action-hover: var(--sem-action-hover);
+  --color-on-action: var(--sem-on-action);
+  --color-selected: var(--sem-selected);
+  --color-on-selected: var(--sem-on-selected);
+  --color-selected-indicator: var(--sem-selected-indicator);
+  --color-danger: var(--sem-danger);
+  --color-danger-soft: var(--sem-danger-soft);
+  --color-danger-action: var(--sem-danger-action);
+  --color-danger-action-hover: var(--sem-danger-action-hover);
+  --color-on-danger-action: var(--sem-on-danger-action);
+  --color-success: var(--sem-success);
+  --color-success-soft: var(--sem-success-soft);
+  --color-highlight: var(--sem-highlight);
+  --color-on-highlight: var(--sem-on-highlight);
+  --color-disabled: var(--sem-disabled);
+  --color-on-disabled: var(--sem-on-disabled);
+}

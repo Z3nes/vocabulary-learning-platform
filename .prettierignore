@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+test-results
+playwright-report
+.cache
+package-lock.json
+apps/api/src/generated
+docs/licenses

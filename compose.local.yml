@@ -1,0 +1,31 @@
+# Isolated teammate database. The existing docker-compose.yml is left unchanged.
+# Use npm run local:setup; this file does not read the owner's .env files.
+name: ${LOCAL_COMPOSE_PROJECT:-vocabulary-local}
+
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: vocabulary_local_migrator
+      POSTGRES_DB: vocabulary_local
+      POSTGRES_PASSWORD: ${LOCAL_MIGRATOR_PASSWORD:?Run npm run local:setup}
+      LOCAL_APP_PASSWORD: ${LOCAL_APP_PASSWORD:?Run npm run local:setup}
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C.UTF-8
+    ports:
+      - '127.0.0.1:${LOCAL_POSTGRES_PORT:-5433}:5432'
+    volumes:
+      # PostgreSQL 18 stores PGDATA below this directory.
+      - postgres-data:/var/lib/postgresql
+      - ./scripts/postgres-local-init.sql:/docker-entrypoint-initdb.d/01-local.sql:ro
+    labels:
+      org.vocabulary.local-database: onboarding-v1
+    healthcheck:
+      # TCP avoids the temporary socket-only server used during initialization.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  postgres-data:

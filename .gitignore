@@ -1,0 +1,52 @@
+# Dependencies and generated application files
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+apps/api/src/generated/
+
+# Test output, caches and temporary files
+coverage/
+test-results/
+playwright-report/
+.cache/
+.vite/
+.vitest/
+tmp/
+temp/
+*.log
+*.tmp
+*.bak
+
+# Private configuration: only reviewed examples belong in source control
+.env
+.env.*
+!.env.example
+!**/.env.example
+!.env.docker.example
+.npmrc.local
+
+# Credentials and database exports (migration SQL remains included)
+*.pem
+*.key
+*.pfx
+*.p12
+*.dump
+*.backup
+backups/
+database-dumps/
+
+# Local agent/editor/OS state
+.agents/
+.claude/
+.codex/
+AGENTS.md
+CLAUDE.md
+HANDOFF.md
+SESSION_*.md
+docs/SESSION_*.md
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,646 @@
+@import 'tailwindcss';
+@import './tokens.css';
+@import './modes.css';
+
+/*
+ * Shared single-select: a raised field with a chevron well, a soft focus halo
+ * while open, and a floating menu with a visible keyboard cursor (border, not
+ * color alone) and a committed checkmark.
+ */
+.select-trigger {
+  display: flex;
+  align-items: center;
+}
+.select-chevron {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  margin-inline-end: -0.25rem;
+  border-radius: 0.5rem;
+  background: var(--sem-surface-sunken);
+  color: var(--sem-fg);
+  transition:
+    rotate var(--duration-base) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+.select-trigger[aria-expanded='true'] {
+  border-color: var(--sem-focus);
+  box-shadow:
+    0 0 0 1px var(--sem-focus),
+    0 0 0 5px color-mix(in srgb, var(--sem-focus) 16%, transparent);
+}
+.select-trigger[aria-expanded='true'] .select-chevron {
+  rotate: 180deg;
+  background: var(--sem-accent-soft);
+  color: var(--sem-on-accent-soft);
+}
+.select-trigger[aria-invalid='true'] {
+  border-color: var(--sem-danger);
+}
+.select-popup {
+  position: fixed;
+  inset: auto;
+  z-index: 100;
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--sem-line);
+  border-radius: calc(var(--radius-control) + 0.125rem);
+  background: var(--sem-surface-raised);
+  color: var(--sem-fg);
+  box-shadow: var(--shadow-float);
+  scrollbar-width: thin;
+  scroll-padding-block: 0.375rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .select-popup {
+    animation: menu-enter var(--duration-fast) var(--ease-standard);
+  }
+}
+.select-option {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 2px solid transparent;
+  border-radius: calc(var(--radius-control) - 0.25rem);
+  cursor: pointer;
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+.select-option[data-current] {
+  font-weight: 600;
+}
+.select-option[data-current] svg {
+  color: var(--sem-accent);
+}
+.select-option:hover:not([aria-disabled='true']) {
+  background: var(--sem-surface-sunken);
+  color: var(--sem-fg);
+}
+.select-option[aria-selected='true'],
+.select-option[aria-selected='true']:hover {
+  border-color: var(--sem-focus);
+  background: var(--sem-accent-soft);
+  color: var(--sem-on-accent-soft);
+}
+.select-option[aria-disabled='true'] {
+  color: var(--sem-on-disabled);
+  cursor: not-allowed;
+}
+
+@media (forced-colors: active) {
+  .select-option[aria-selected='true'] {
+    border-color: Highlight;
+  }
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--sem-surface);
+    color: var(--sem-fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';
+    font-optical-sizing: auto;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* One focus indicator everywhere; its color follows the surface (≥3:1). */
+  :focus-visible {
+    outline: 2px solid var(--sem-focus);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--sem-accent-soft);
+    color: var(--sem-on-accent-soft);
+  }
+
+  a {
+    color: var(--sem-accent);
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    color: var(--sem-accent-hover);
+  }
+
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+
+  /* Focus targets after route changes and the skip link: not controls, so no ring. */
+  main[tabindex='-1']:focus,
+  main h1[tabindex='-1']:focus {
+    outline: none;
+  }
+}
+
+@layer components {
+  .list-card:has(.list-card-link:focus-visible) {
+    outline: 2px solid var(--sem-focus);
+    outline-offset: 3px;
+  }
+
+  .list-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(34rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    border: 1px solid var(--sem-line);
+    border-radius: var(--radius-card);
+    background: var(--sem-surface-raised);
+    color: var(--sem-fg);
+    box-shadow: var(--shadow-overlay);
+  }
+
+  .list-dialog::backdrop {
+    background-color: rgb(16 17 20 / 0.6);
+  }
+
+  /* Bulk import needs room for long rows and side-by-side meaning decisions. */
+  .list-dialog[data-size='wide'] {
+    width: min(52rem, calc(100vw - 2rem));
+  }
+
+  /*
+   * List and word dialogs: entrance only. They unmount on close, so closing stays
+   * instant and focus restoration stays synchronous. showModal() has already moved
+   * focus and made the page inert; the transition never delays interaction.
+   * Browsers without @starting-style, and reduced motion, open them instantly.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    .list-dialog {
+      transition:
+        opacity var(--duration-base) var(--ease-standard),
+        translate var(--duration-base) var(--ease-standard);
+    }
+
+    .list-dialog::backdrop {
+      transition: background-color var(--duration-base) var(--ease-standard);
+    }
+  }
+
+  @starting-style {
+    .list-dialog[open] {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+
+    .list-dialog[open]::backdrop {
+      background-color: rgb(16 17 20 / 0);
+    }
+  }
+
+  /*
+   * Mobile navigation drawer (native modal <dialog>). It slides in from the
+   * left; the exit animation runs in CSS alone (display/overlay allow-discrete),
+   * so closing never waits for JavaScript. Browsers without @starting-style
+   * simply show and hide it instantly.
+   */
+  .app-drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    margin: 0;
+    width: min(20rem, calc(100vw - 3.5rem));
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    border-right: 1px solid var(--sem-line);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: var(--shadow-overlay);
+    translate: -100% 0;
+    transition:
+      translate var(--duration-base) var(--ease-exit),
+      display var(--duration-base) allow-discrete,
+      overlay var(--duration-base) allow-discrete;
+  }
+
+  .app-drawer[open] {
+    translate: 0 0;
+    transition-duration: var(--duration-slow);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .app-drawer::backdrop {
+    background-color: rgb(16 17 20 / 0);
+    transition:
+      background-color var(--duration-base) var(--ease-standard),
+      display var(--duration-base) allow-discrete,
+      overlay var(--duration-base) allow-discrete;
+  }
+
+  .app-drawer[open]::backdrop {
+    background-color: rgb(16 17 20 / 0.6);
+  }
+
+  @starting-style {
+    .app-drawer[open] {
+      translate: -100% 0;
+    }
+
+    .app-drawer[open]::backdrop {
+      background-color: rgb(16 17 20 / 0);
+    }
+  }
+}
+
+/* The modal drawer blocks interaction with the page; also stop it scrolling. */
+html:has(.app-drawer:modal, .list-dialog:modal) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * "Listelerim" cards. The title link's ::after covers the card, while Rename and
+ * Delete sit above it, so `:has(.list-card-link:hover)` is true only over the
+ * navigable surface, never over the buttons. Unlayered, so it overrides the
+ * Card's border/shadow/background utilities. Nothing changes the card's size or
+ * position (no lift or scale), so the hit target never moves under the pointer.
+ */
+.list-card {
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.list-card-arrow {
+  transition: translate var(--duration-base) var(--ease-standard);
+}
+
+/* Only on pointers that can hover, so touch screens never keep a sticky highlight. */
+@media (hover: hover) {
+  .list-card:has(.list-card-link:hover) {
+    border-color: var(--sem-accent);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .list-card-link:hover {
+    text-decoration-line: underline;
+  }
+
+  /* Mode cards (see .mode-card below): border and glow in the mode's color. */
+  .mode-card:has(.launcher-link:hover) {
+    border-color: var(--mode-line, var(--sem-accent));
+    box-shadow:
+      0 18px 36px -18px var(--mode-glow, rgb(18 98 176 / 0.4)),
+      var(--shadow-raised);
+  }
+
+  .mode-card:has(.launcher-link:hover) .mode-card-go {
+    background-color: var(--mode-deep, var(--sem-action));
+    color: #ffffff;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .list-card:has(.list-card-link:hover) .list-card-arrow {
+    translate: 0.25rem 0;
+  }
+
+  /* Mode cards lift slightly, their art zooms a little and the arrow nudges. */
+  .mode-card:has(.launcher-link:hover) {
+    translate: 0 -3px;
+  }
+
+  .mode-card:has(.launcher-link:hover) .mode-card-art > * {
+    scale: 1.04;
+  }
+
+  .mode-card:has(.launcher-link:hover) .mode-card-go {
+    translate: 0.2rem 0;
+  }
+}
+
+/* Pressed (mouse and touch): a color change only, at the fast duration. */
+.list-card:has(.list-card-link:active) {
+  border-color: var(--sem-accent);
+  background-color: var(--sem-surface-sunken);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Visual identity: backdrops, hero and section surfaces --------------------- */
+
+/*
+ * Soft color wash behind the top of every page: a quiet, static backdrop that
+ * gives the canvas depth. Decorative only; content never sits on its strongest part.
+ */
+.app-aurora {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 30rem;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 22rem at 12% -6rem, rgb(59 130 246 / 0.13), transparent 70%),
+    radial-gradient(36rem 20rem at 88% -4rem, rgb(139 92 246 / 0.1), transparent 70%),
+    radial-gradient(30rem 16rem at 55% -8rem, rgb(20 184 166 / 0.07), transparent 70%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+}
+
+/* Fine dot grid, used inside illustrated panels. */
+.dot-grid {
+  background-image: radial-gradient(rgb(13 19 33 / 0.09) 1px, transparent 1.2px);
+  background-size: 14px 14px;
+}
+
+/*
+ * Hero panels on the navy surface: a deep blue gradient with a soft light source.
+ * Every stop is at least as dark as the navy token, so the navy text roles keep
+ * their contrast everywhere on the panel.
+ */
+.hero-surface {
+  background:
+    radial-gradient(28rem 18rem at 100% 0%, rgb(56 104 240 / 0.38), transparent 70%),
+    radial-gradient(22rem 16rem at 0% 100%, rgb(124 58 237 / 0.22), transparent 70%),
+    linear-gradient(140deg, #071a3a 0%, #0b2a60 55%, #102f74 100%);
+}
+.hero-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 2.25rem 2.25rem;
+  mask-image: radial-gradient(ellipse at 80% 10%, #000 10%, transparent 72%);
+}
+/* The practice hub keeps the navy but glows magenta and rose instead of blue. */
+.hero-surface-warm {
+  background:
+    radial-gradient(28rem 18rem at 100% 0%, rgb(217 70 239 / 0.3), transparent 70%),
+    radial-gradient(22rem 16rem at 0% 100%, rgb(251 113 133 / 0.22), transparent 70%),
+    linear-gradient(140deg, #071a3a 0%, #0b2a60 55%, #102f74 100%);
+}
+
+/*
+ * HubHero's fanned mode cards: they settle into their fan once when the page
+ * opens (only `translate` and `opacity` move; each card keeps its own `rotate`).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .hub-collage-card {
+    animation: collage-in var(--duration-slow) var(--ease-emphasized) both;
+  }
+  .hub-collage-card:nth-child(2) {
+    animation-delay: 70ms;
+  }
+  .hub-collage-card:nth-child(3) {
+    animation-delay: 140ms;
+  }
+}
+
+@keyframes collage-in {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}
+
+/*
+ * Section panels: study modes sit on a cool panel, practice games on a warm one,
+ * so the two groups read as different places at a glance (their headings and
+ * descriptions carry the same distinction in text).
+ */
+.panel-study,
+.panel-practice {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--sem-line);
+  border-radius: var(--radius-panel);
+  background-color: var(--sem-surface-raised);
+  box-shadow: var(--shadow-card);
+}
+.panel-study {
+  background-image:
+    radial-gradient(40rem 16rem at 0% 0%, rgb(59 130 246 / 0.1), transparent 70%),
+    linear-gradient(180deg, #f3f7ff 0%, #ffffff 13rem);
+}
+.panel-practice {
+  background-image:
+    radial-gradient(40rem 16rem at 100% 0%, rgb(251 113 133 / 0.1), transparent 70%),
+    radial-gradient(30rem 14rem at 0% 0%, rgb(251 146 60 / 0.08), transparent 70%),
+    linear-gradient(180deg, #fff7f3 0%, #ffffff 13rem);
+}
+
+/*
+ * Mode cards (ModeLauncher): the title link's ::after covers the card. Hover
+ * tints the border and adds a glow in the mode's color; the lift and the art's
+ * small zoom only run without reduced motion. Keyboard focus outlines the card.
+ */
+.mode-card {
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard),
+    translate var(--duration-base) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+.mode-card .mode-card-art > * {
+  transition: scale var(--duration-slow) var(--ease-standard);
+}
+.mode-card .mode-card-go {
+  transition:
+    translate var(--duration-base) var(--ease-standard),
+    background-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard);
+}
+.mode-card:has(.launcher-link:focus-visible) {
+  outline: 2px solid var(--sem-focus);
+  outline-offset: 3px;
+}
+.mode-card:has(.launcher-link:active) {
+  translate: 0 0;
+  background-color: var(--mode-tint, var(--sem-surface-sunken));
+}
+
+/* Keyboard-key look for option letters (A, B, C, D) and shortcuts. */
+.keycap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding-inline: 0.5rem;
+  border: 1px solid var(--sem-line-strong);
+  border-radius: 0.5rem;
+  background: var(--sem-surface-raised);
+  box-shadow: 0 2px 0 var(--sem-line-strong);
+  color: var(--sem-fg);
+  font-size: var(--text-small);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* One-time celebration ring around a completion medallion. Nothing loops. */
+.celebrate {
+  position: relative;
+}
+.celebrate::after {
+  content: '';
+  position: absolute;
+  inset: -0.375rem;
+  border: 2px solid var(--sem-success);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .celebrate {
+    animation: celebrate-pop var(--duration-slow) var(--ease-emphasized);
+  }
+  .celebrate::after {
+    animation: celebrate-ring 900ms var(--ease-standard) 120ms;
+  }
+}
+
+@keyframes celebrate-pop {
+  from {
+    scale: 0.6;
+    opacity: 0;
+  }
+}
+
+@keyframes celebrate-ring {
+  from {
+    opacity: 0.7;
+    scale: 0.85;
+  }
+  to {
+    opacity: 0;
+    scale: 1.6;
+  }
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    translate: 0 -0.25rem;
+  }
+}
+
+@layer utilities {
+  /* Static copy of the focus ring, for documenting focus states. */
+  .focus-ring-sample {
+    outline: 2px solid var(--sem-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Respect the operating-system setting: no movement, near-instant transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * No global `scroll-behavior: smooth`: React Router's <ScrollRestoration> calls
+ * window.scrollTo(0, y), which inherits it, so every route change and back/forward
+ * restoration would glide instead of starting at the right position. In-page
+ * anchors (skip link, section links) jump directly, honoring scroll-margin-top.
+ */
+
+/*
+ * Shared route entrance. AppShell keys this wrapper by pathname, so it runs once
+ * per page, including between routes that render the same component. Only the
+ * page content moves; there is no exit animation and nothing waits for it.
+ * With reduced motion the page appears without animation.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .route-enter {
+    animation: route-enter var(--duration-base) var(--ease-standard);
+  }
+
+  /*
+   * Content that arrives after its page appeared (loaded words, a new status
+   * notice): one short opacity fade. No movement, so nothing near it shifts.
+   */
+  .fade-in {
+    animation: fade-in var(--duration-base) var(--ease-standard);
+  }
+
+  /*
+   * A new question, card or round result on a study stage: a short rise into
+   * place. It runs once per mount (callers key it by question), never loops,
+   * and never delays input: the content is interactive from the first frame.
+   */
+  .stage-enter {
+    animation: stage-enter var(--duration-slow) var(--ease-standard);
+  }
+
+  /* Answer feedback: a small settle so the verdict reads as a response. */
+  .feedback-enter {
+    animation: feedback-enter var(--duration-base) var(--ease-emphasized);
+  }
+
+  /* A revealed flashcard answer unfolds from the card's fold line. */
+  .reveal-enter {
+    animation: reveal-enter var(--duration-base) var(--ease-emphasized);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes stage-enter {
+  from {
+    opacity: 0;
+    translate: 0 0.625rem;
+  }
+}
+
+@keyframes feedback-enter {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes reveal-enter {
+  from {
+    opacity: 0;
+    translate: 0 -0.5rem;
+  }
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    translate: 0 0.375rem;
+  }
+}

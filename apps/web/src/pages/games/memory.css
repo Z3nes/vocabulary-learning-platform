@@ -1,0 +1,95 @@
+/*
+ * A memory card has two faces stacked in one grid cell. Revealing it turns the
+ * inner layer over; each face hides its back, so only one side is ever seen.
+ * With reduced motion the card changes sides instantly.
+ */
+.memory-card {
+  perspective: 1000px;
+}
+.memory-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition:
+    transform var(--duration-slow) var(--ease-emphasized),
+    translate var(--duration-fast) var(--ease-standard);
+}
+.memory-card[data-revealed='true'] .memory-inner {
+  transform: rotateY(180deg);
+}
+.memory-face {
+  position: relative;
+  grid-area: 1 / 1;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.memory-face-open {
+  transform: rotateY(180deg);
+}
+
+/*
+ * The closed side: the game's gradient with a light sheen, fine diagonal lines
+ * and an inset frame, like the back of a playing card. Decorative only; the
+ * button's name ("Kapalı kart 3") says it is closed.
+ */
+.memory-back {
+  border: 1px solid color-mix(in srgb, var(--mode-deep) 80%, #000000);
+  border-radius: var(--radius-card);
+  background:
+    radial-gradient(120% 80% at 18% 0%, rgb(255 255 255 / 0.3), transparent 55%),
+    repeating-linear-gradient(135deg, rgb(255 255 255 / 0.08) 0 2px, transparent 2px 11px),
+    linear-gradient(155deg, var(--mode-solid) 0%, var(--mode-deep) 58%, #5b0f68 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 12px 24px -14px var(--mode-glow),
+    var(--shadow-card);
+  transition: box-shadow var(--duration-fast) var(--ease-standard);
+}
+.memory-back::after {
+  content: '';
+  position: absolute;
+  inset: 0.45rem;
+  border: 1.5px solid rgb(255 255 255 / 0.3);
+  border-radius: calc(var(--radius-card) - 0.35rem);
+  pointer-events: none;
+}
+
+/* Closed cards that can be opened glow on hover; the inner layer lifts slightly
+   (the button itself never moves, so the hit target stays put). */
+@media (hover: hover) {
+  .memory-card:not([aria-disabled='true']):hover .memory-back {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      0 18px 30px -14px var(--mode-glow),
+      var(--shadow-raised);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .memory-card:not([aria-disabled='true']):hover .memory-inner {
+    translate: 0 -3px;
+  }
+}
+
+/* A found pair settles with one small pop after the turn. Nothing loops. */
+@media (prefers-reduced-motion: no-preference) {
+  .memory-card[data-matched='true'] .memory-face-open {
+    animation: memory-match 480ms var(--ease-emphasized) var(--duration-slow);
+  }
+}
+@keyframes memory-match {
+  40% {
+    scale: 1.05;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memory-inner {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .memory-back {
+    background: Canvas;
+    border: 2px solid CanvasText;
+  }
+}

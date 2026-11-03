@@ -1,0 +1,314 @@
+// The connection URL is supplied by prisma.config.ts.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+  previewFeatures     = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  identities       UserIdentity[]
+  lists            WordList[]
+  studySessions    StudySession[]
+  completedGames   CompletedGame[]
+  practiceSessions PracticeSession[]
+  puzzleSessions   PuzzleSession[]
+}
+
+model UserIdentity {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  provider  String
+  subject   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+model WordList {
+  id               String            @id @default(uuid()) @db.Uuid
+  ownerId          String            @db.Uuid
+  title            String            @db.VarChar(100)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  words            Word[]
+  // Deleting a list deletes its study sessions (the list's data is removed as a whole).
+  studySessions    StudySession[]
+  completedGames   CompletedGame[]
+  practiceSessions PracticeSession[]
+  puzzleSessions   PuzzleSession[]
+
+  @@index([ownerId, updatedAt])
+}
+
+model Word {
+  id                   String             @id @default(uuid()) @db.Uuid
+  wordListId           String             @db.Uuid
+  english              String             @db.VarChar(120)
+  normalizedEnglishKey String
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+  wordList             WordList           @relation(fields: [wordListId], references: [id], onDelete: Cascade)
+  meanings             WordMeaning[]
+  progress             WordProgress?
+  studyCards           StudyCard[]
+  practiceQuestions    PracticeQuestion[]
+
+  @@unique([wordListId, normalizedEnglishKey])
+  @@index([wordListId, createdAt, id])
+}
+
+model WordMeaning {
+  id                   String @id @default(uuid()) @db.Uuid
+  wordId               String @db.Uuid
+  turkish              String @db.VarChar(160)
+  normalizedMeaningKey String
+  position             Int
+  word                 Word   @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([wordId, normalizedMeaningKey])
+  @@index([wordId, position])
+}
+
+/// Study direction chosen when a session starts.
+enum StudyDirection {
+  EN_TR
+  TR_EN
+}
+
+enum StudySessionStatus {
+  ACTIVE
+  COMPLETED
+  ENDED_EARLY
+}
+
+/// Final outcome of a card in one session. NULL on the card means unresolved.
+enum StudyOutcome {
+  KNOWN
+  MISSED
+  REMOVED
+}
+
+/// One study session over a snapshot of a personal list.
+///
+/// Invariants (see src/study and the migration's CHECK constraints):
+/// - Ordinary sessions retain the legacy `activeListId` uniqueness invariant.
+/// - Targeted sessions leave that legacy field NULL and use the partial scope index;
+///   list-specific and ALL_LISTS review may coexist with ordinary list sessions.
+/// - `version` increases by one with every accepted change (card action or ending),
+///   so a client acting on an older version is rejected as stale.
+model StudySession {
+  id            String             @id @default(uuid()) @db.Uuid
+  ownerId       String             @db.Uuid
+  wordListId    String?            @db.Uuid
+  /// Server-derived LIST:<id>, REVIEW:LIST:<id>, or REVIEW:ALL_LISTS.
+  scopeKey      String
+  reviewOnly    Boolean            @default(false)
+  eligibleCount Int?
+  activeListId  String?            @unique @db.Uuid
+  /// List title when the session started (summary metadata; the list may be renamed).
+  listTitle     String             @db.VarChar(100)
+  direction     StudyDirection
+  percentage    Int
+  cardCount     Int
+  status        StudySessionStatus @default(ACTIVE)
+  version       Int                @default(0)
+  startedAt     DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(3)
+  finishedAt    DateTime?          @db.Timestamptz(3)
+  owner         User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  wordList      WordList?          @relation(fields: [wordListId], references: [id], onDelete: Cascade)
+  cards         StudyCard[]
+
+  @@unique([ownerId, scopeKey], map: "StudySession_active_scope_key", where: raw("\"status\" = 'ACTIVE'"))
+  @@index([ownerId, wordListId, startedAt])
+}
+
+/// A card in a session: an immutable snapshot of the word when the session started,
+/// plus its place in the queue and its outcome. Editing or deleting the word later
+/// never changes the snapshot; deleting it only clears `wordId`.
+model StudyCard {
+  id              String        @id @default(uuid()) @db.Uuid
+  sessionId       String        @db.Uuid
+  wordId          String?       @db.Uuid
+  english         String        @db.VarChar(120)
+  /// All Turkish meanings in their saved order.
+  meanings        String[]
+  /// Origin metadata stays available in a cross-list snapshot after deletion.
+  originListId    String?       @db.Uuid
+  originListTitle String?
+  /// Randomized presentation order when the session started (0-based, stable).
+  position        Int
+  /// Current queue order; a skip moves the card behind every other card.
+  queueOrder      Int
+  /// The card was skipped once; on its next appearance it can be removed instead.
+  skipped         Boolean       @default(false)
+  outcome         StudyOutcome?
+  answeredAt      DateTime?     @db.Timestamptz(3)
+  session         StudySession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  word            Word?         @relation(fields: [wordId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, position])
+  @@unique([sessionId, queueOrder])
+  @@unique([sessionId, wordId])
+  @@index([wordId])
+}
+
+/// Shared learning state of one word, for both study directions.
+/// A MISSED result sets `needsReview` and resets `knownStreak`; KNOWN increments the
+/// streak and clears `needsReview` once it reaches two. A word appears at most once per
+/// session, so two consecutive KNOWN results always come from separate sessions.
+model WordProgress {
+  wordId      String   @id @db.Uuid
+  needsReview Boolean  @default(false)
+  knownStreak Int      @default(0)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  word        Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+}
+
+/// Legacy client-reported games remain mastery-independent. Persistent practice
+/// inserts authoritative history atomically with eligible positive learning evidence.
+model CompletedGame {
+  id              String           @id @default(uuid()) @db.Uuid
+  ownerId         String           @db.Uuid
+  completionId    String           @db.Uuid
+  wordListId      String?          @db.Uuid
+  listTitle       String           @db.VarChar(100)
+  gameType        String           @db.VarChar(20)
+  completedAt     DateTime         @default(now()) @db.Timestamptz(3)
+  /// Canonical validated original request, for exact logical retry comparison.
+  requestHash     String           @db.VarChar(64)
+  items           Json
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  wordList        WordList?        @relation(fields: [wordListId], references: [id], onDelete: Cascade)
+  practiceSession PracticeSession?
+  puzzleSession   PuzzleSession?
+
+  @@unique([ownerId, completionId])
+  @@index([ownerId, completedAt, id])
+}
+
+enum PracticeStatus {
+  ACTIVE
+  COMPLETED
+  CANCELED
+}
+
+/// Server-evaluated written recall and listening share this persistent lifecycle.
+model PracticeSession {
+  id              String             @id @default(uuid()) @db.Uuid
+  ownerId         String             @db.Uuid
+  practiceType    String             @db.VarChar(20)
+  wordListId      String?            @db.Uuid
+  scopeKey        String
+  listTitle       String             @db.VarChar(100)
+  percentage      Int
+  eligibleCount   Int
+  questionCount   Int
+  currentPosition Int                @default(0)
+  version         Int                @default(0)
+  status          PracticeStatus     @default(ACTIVE)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  completedAt     DateTime?          @db.Timestamptz(3)
+  canceledAt      DateTime?          @db.Timestamptz(3)
+  completedGameId String?            @unique @db.Uuid
+  owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  wordList        WordList?          @relation(fields: [wordListId], references: [id], onDelete: SetNull)
+  completedGame   CompletedGame?     @relation(fields: [completedGameId], references: [id], onDelete: SetNull)
+  questions       PracticeQuestion[]
+
+  @@unique([ownerId, practiceType, scopeKey], map: "PracticeSession_active_scope_key", where: raw("\"status\" = 'ACTIVE'"))
+  @@index([ownerId, createdAt])
+}
+
+model PracticeQuestion {
+  id                 String              @id @default(uuid()) @db.Uuid
+  sessionId          String              @db.Uuid
+  wordId             String?             @db.Uuid
+  /// Immutable identity, including after source deletion.
+  sourceWordId       String              @db.Uuid
+  position           Int
+  english            String              @db.VarChar(120)
+  meanings           String[]
+  acceptedAnswers    String[]
+  overlappingAnswers String[]
+  answer             String?
+  normalizedAnswer   String?
+  correct            Boolean?
+  masteryEligible    Boolean             @default(false)
+  masteryApplied     Boolean             @default(false)
+  answeredAt         DateTime?           @db.Timestamptz(3)
+  /// NULL until resolved; skips are distinct from evaluated attempts.
+  resolution         PracticeResolution?
+  resolvedAt         DateTime?           @db.Timestamptz(3)
+  /// Mixed-only frozen mode and source context; legacy practice leaves these NULL.
+  activityType       String?             @db.VarChar(20)
+  originListId       String?             @db.Uuid
+  originListTitle    String?             @db.VarChar(100)
+  modeData           Json?
+  revealedAt         DateTime?           @db.Timestamptz(3)
+  session            PracticeSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  word               Word?               @relation(fields: [wordId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, position])
+  @@unique([sessionId, sourceWordId])
+  @@index([wordId])
+}
+
+enum PracticeResolution {
+  ANSWERED
+  AUDIO_UNAVAILABLE
+}
+
+/// Board-based, mastery-independent games. Document contains versioned immutable
+/// vocabulary/layout snapshots and mutable drafts/solved flags, never client solutions.
+model PuzzleSession {
+  id              String          @id @default(uuid()) @db.Uuid
+  ownerId         String          @db.Uuid
+  wordListId      String?         @db.Uuid
+  scopeKey        String
+  listTitle       String          @db.VarChar(100)
+  gameType        String          @db.VarChar(20)
+  percentage      Int
+  eligibleCount   Int
+  selectedCount   Int
+  placedCount     Int
+  version         Int             @default(0)
+  status          PracticeStatus  @default(ACTIVE)
+  document        Json
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  completedAt     DateTime?       @db.Timestamptz(3)
+  canceledAt      DateTime?       @db.Timestamptz(3)
+  completedGameId String?         @unique @db.Uuid
+  owner           User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  wordList        WordList?       @relation(fields: [wordListId], references: [id], onDelete: SetNull)
+  completedGame   CompletedGame?  @relation(fields: [completedGameId], references: [id], onDelete: SetNull)
+  commands        PuzzleCommand[]
+
+  @@unique([ownerId, gameType, scopeKey], map: "PuzzleSession_active_scope_key", where: raw("\"status\" = 'ACTIVE'"))
+  @@index([ownerId, createdAt])
+}
+
+/// Durable logical-request receipts make retries safe even after later edits/tabs.
+model PuzzleCommand {
+  id          String        @id @default(uuid()) @db.Uuid
+  sessionId   String        @db.Uuid
+  commandId   String        @db.Uuid
+  requestHash String        @db.VarChar(64)
+  correct     Boolean?
+  session     PuzzleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, commandId])
+}
