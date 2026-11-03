@@ -138,38 +138,16 @@ npm.cmd ci
 
 Bu komut, projenin `package-lock.json` dosyasında belirtilen bağımlılıkları kurar. İlk kurulumda internet bağlantısı gereklidir.
 
-## 8. Aynı bilgisayarda ikinci kopya
+PowerShell, çalıştırma ilkesi nedeniyle `npm.ps1` dosyasını engelleyebilir. Bu yüzden `npm.cmd` kullanıyoruz. Windows güvenlik ayarlarını değiştirmen veya `Set-ExecutionPolicy` çalıştırman gerekmez.
 
-Varsayılan Compose proje adı, proje klasöründen bağımsız olarak `vocabulary-local` değeridir. Aynı adı kullanmak aynı container'ı ve veri birimini hedefleyebilir. Başka bir kopyanın gerçek `.env.docker` dosyasını veya parolalarını kopyalama.
+<a id="ayni-bilgisayarda-ikinci-kopya"></a>
 
-Container ortam değişkenlerini yazdırmadan mevcut adları ve kullanılan portları incele:
+> [!IMPORTANT]
+> **Bu projeyi bu bilgisayara ilk kez mi kuruyorsun?** Doğrudan 8. bölüme geç.
+>
+> **Bu projenin başka bir kopyası bu bilgisayarda yerel Docker kurulumunu zaten kullanıyor mu?** Burada dur. Yeni bir klasör ayrı bir veritabanı oluşturmaz; iki kopya aynı container'ı ve verileri hedefleyebilir. `local:setup` komutunu çalıştırmadan **önce** [Aynı bilgisayarda ikinci kopya](LOCAL_DEVELOPMENT.md#ayni-bilgisayarda-ikinci-kopya) yönergelerini izleyerek ayrı bir ortam yapılandır.
 
-```powershell
-docker ps -a --format '{{.Names}}'
-docker volume ls --format '{{.Name}}'
-Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 5434,3001,5174 }
-```
-
-Aşağıdaki örnek yalnızca `vocabulary-local-second` projesi/veri birimi ve belirtilen portlar kullanılmıyorsa uygundur. Kullanılıyorlarsa izin verilen farklı bir proje son eki ve üç boş port seç. Komutları **yeni** proje kopyasında çalıştır; mevcut `.env.docker` dosyasının üzerine yazmayı reddeder:
-
-```powershell
-if (Test-Path -LiteralPath .\.env.docker) { throw 'Existing .env.docker: inspect it privately before continuing.' }
-$localConfig = Get-Content -LiteralPath .\.env.docker.example -Raw
-$localConfig = $localConfig.Replace('LOCAL_COMPOSE_PROJECT=vocabulary-local', 'LOCAL_COMPOSE_PROJECT=vocabulary-local-second')
-$localConfig = $localConfig.Replace('LOCAL_POSTGRES_PORT=5433', 'LOCAL_POSTGRES_PORT=5434')
-$localConfig = $localConfig.Replace('LOCAL_API_PORT=3000', 'LOCAL_API_PORT=3001')
-$localConfig = $localConfig.Replace('LOCAL_WEB_PORT=5173', 'LOCAL_WEB_PORT=5174')
-$localMigratorPassword = node -p "require('node:crypto').randomBytes(32).toString('hex')"
-$localAppPassword = node -p "require('node:crypto').randomBytes(32).toString('hex')"
-$localConfig = $localConfig.Replace('REPLACE_MIGRATOR_PASSWORD', $localMigratorPassword)
-$localConfig = $localConfig.Replace('REPLACE_APP_PASSWORD', $localAppPassword)
-$localConfig | Set-Content -LiteralPath .\.env.docker -Encoding ascii
-Remove-Variable localConfig,localMigratorPassword,localAppPassword
-```
-
-Kurulum çalıştığında ayrı bir container ve `vocabulary-local-second_postgres-data` veri birimi oluşturulur. Veritabanı adları **bu ayrı PostgreSQL sunucusu içinde** `vocabulary_local` ve `vocabulary_local_test` olarak kalır. Bunlar mevcut bir ana makine veritabanına yönlendirmek için değiştirilebilen adlar değildir. Yardımcı betik migration uygulamadan önce etiketleri, parolaları, port bağlamasını ve adlandırılmış veri birimini kontrol eder. Uyuşmazlık, durup incelemek için bir nedendir; container veya veri birimi silmek için değil.
-
-## 9. Veritabanını hazırla ve uygulamayı başlat
+## 8. Veritabanını hazırla ve uygulamayı başlat
 
 Docker Desktop açık kalsın:
 
@@ -195,7 +173,7 @@ Bunlar beklenen çıktıyı gösterir; kurulum ekran görüntüsü değildir. So
 [local] Local demo identity only. Web: http://127.0.0.1:5173/
 ```
 
-[Ana paneli aç](http://127.0.0.1:5173/), bir liste oluştur ve kendi kelimelerini ekle. İkinci kopya örneğini kullandıysan **5174** portunu aç. Başka bir PowerShell penceresinde varsayılan portlarla şu kontrolleri yapabilirsin:
+[Ana paneli aç](http://127.0.0.1:5173/), bir liste oluştur ve kendi kelimelerini ekle. Başka bir PowerShell penceresinde varsayılan portlarla şu kontrolleri yapabilirsin:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:3000/api/health
@@ -204,7 +182,7 @@ Invoke-RestMethod http://127.0.0.1:5173/api/health/db
 
 `status: ok` ve `database: reachable` sonuçlarını bekle. Portları değiştirdiysen kendi portlarını kullan. `/dev/status` sayfası da yerel API/veritabanı durumunu gösterir. Varsayılan portlarda başka bir program çalışıyorsa bu istekleri ona gönderme.
 
-## 10. Durdur ve yeniden başlat
+## 9. Durdur ve yeniden başlat
 
 Web/API süreçlerini durdurmak için `local:dev` çalışan pencerede **Ctrl+C** kullan. Ardından aynı proje kopyasında çalıştır:
 
@@ -221,24 +199,24 @@ npm.cmd run local:dev
 
 Veritabanı hâlâ çalışıyor ve şema güncelse `local:dev` yeterlidir. Durdurmak ve yeniden başlatmak için aynı proje kopyasını/yapılandırmayı kullan.
 
-## 11. Testler
+## 10. Testler
 
 [README'deki test komutlarına](../README.tr.md#testler) bak. Prisma Client üretildikten sonra birim testleri çalışan veritabanı gerektirmez. `npm.cmd run local:test:integration`, kendine ait doğrulanmış Docker ortamını gerektirir ve onun özel test veritabanını kullanır. Test hedefi yerine kişisel veritabanı bağlantısı verme.
 
-## 12. Sorun giderme
+## 11. Sorun giderme
 
-| Sorun                                               | Kontrol edilecekler                                                                                                                                                                                                                                            |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Yanlış Node sürümü / `EBADENGINE`                   | `node --version` ve `Get-Command node` çalıştır. En az 24.11.0 olan Node 24.x seç, PowerShell'i yeniden aç ve `npm.cmd ci` komutunu tekrarla. `engine-strict` ayarını kapatma.                                                                                 |
-| Git klonlamada izin hatası                          | `Get-Location` ile kullanıcı klasöründe olduğunu doğrula. Kimlik doğrulama hatasında depoya erişimini kontrol edip normal GitHub girişini kullan. Sistem klasörüne yazmak için Git'i yönetici olarak çalıştırma.                                               |
-| Docker komutu bulunamıyor                           | Docker Desktop kurulumunu tamamla, PowerShell'i yeniden aç ve `Get-Command docker` çalıştır. WinGet yoksa resmî yükleyiciyi kullan.                                                                                                                            |
-| Docker Engine başlayamıyor                          | Docker Desktop'ı aç, hatasını incele, WSL durumunu ve donanım sanallaştırmasını doğrula, istenen yeniden başlatmaları tamamla. Resmî Docker sorun giderme bilgilerine bak; ilk adım olarak fabrika ayarlarına dönme veya veri silme.                           |
-| WSL yok veya eksik                                  | `wsl --version` ve `wsl --status` çalıştır; WSL yoksa Yönetici PowerShell'de `wsl --install --no-distribution` kullan. Var olan WSL'yi `wsl --update` ile güncelle ve istenirse yeniden başlat.                                                                |
-| 5433, 3000 veya 5173 portu kullanılıyor             | Portu kullanan programı belirle. Yeni izole kopya için 8. bölümdeki ayrı proje, veri birimi ve boş portları kullan. Tanımadığın veritabanını durdurma veya veri içeren container'ın portlarını incelemeden değiştirme.                                         |
-| `npm.ps1` yüklenemiyor                              | `npm.cmd`, gerektiğinde `npx.cmd` kullan. Sistem çalıştırma ilkesini değiştirmek gerekmez.                                                                                                                                                                     |
-| Prisma kimlik doğrulama, migration veya şema hatası | İlk `.env.docker` parolalarını koru. Bildirilen Prisma kodunu, migration adını ve container kimliğini incele. Sıfırlama, `db push`, uygulanmış migration'ı düzenleme veya veri birimi silme yapma. Gizli bilgileri çıkarılmış hata ayrıntılarıyla yardım iste. |
-| Ön yüz veya API başlamıyor                          | `npm.cmd ci` ve `local:setup` işlemlerinin tamamlandığını, Docker sunucu sürümü kontrolünün geçtiğini ve portların boş olduğunu doğrula. Proje kökünden `npm.cmd run local:dev` başlat; iki sürecin çıktısını da incele.                                       |
-| İmaj veya paket indirilemiyor                       | Docker kayıt deposuna veya npm'e ağ/proxy erişimini kontrol et; bağlantı düzeldikten sonra aynı komutu tekrarla. Ağ hatasını çözmek için kilit dosyasını veya veritabanı parolalarını değiştirme.                                                              |
-| Dinleme sesi yok                                    | Varsayılan kurulum Azure'u kapatır. Tarayıcı yedeği kullanılabilir bir İngilizce ses gerektirir; ses yoksa arayüzdeki ses kullanılamıyor akışını kullan.                                                                                                       |
+| Sorun                                               | Kontrol edilecekler                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Yanlış Node sürümü / `EBADENGINE`                   | `node --version` ve `Get-Command node` çalıştır. En az 24.11.0 olan Node 24.x seç, PowerShell'i yeniden aç ve `npm.cmd ci` komutunu tekrarla. `engine-strict` ayarını kapatma.                                                                                                                         |
+| Git klonlamada izin hatası                          | `Get-Location` ile kullanıcı klasöründe olduğunu doğrula. Kimlik doğrulama hatasında depoya erişimini kontrol edip normal GitHub girişini kullan. Sistem klasörüne yazmak için Git'i yönetici olarak çalıştırma.                                                                                       |
+| Docker komutu bulunamıyor                           | Docker Desktop kurulumunu tamamla, PowerShell'i yeniden aç ve `Get-Command docker` çalıştır. WinGet yoksa resmî yükleyiciyi kullan.                                                                                                                                                                    |
+| Docker Engine başlayamıyor                          | Docker Desktop'ı aç, hatasını incele, WSL durumunu ve donanım sanallaştırmasını doğrula, istenen yeniden başlatmaları tamamla. Resmî Docker sorun giderme bilgilerine bak; ilk adım olarak fabrika ayarlarına dönme veya veri silme.                                                                   |
+| WSL yok veya eksik                                  | `wsl --version` ve `wsl --status` çalıştır; WSL yoksa Yönetici PowerShell'de `wsl --install --no-distribution` kullan. Var olan WSL'yi `wsl --update` ile güncelle ve istenirse yeniden başlat.                                                                                                        |
+| 5433, 3000 veya 5173 portu kullanılıyor             | Portu kullanan programı belirle. Ek bir izole kopya için [ikinci kopya yönergelerini](LOCAL_DEVELOPMENT.md#ayni-bilgisayarda-ikinci-kopya) izleyerek ayrı proje, veri birimi ve boş portlar kullan. Tanımadığın veritabanını durdurma veya veri içeren container'ın portlarını incelemeden değiştirme. |
+| `npm.ps1` yüklenemiyor                              | `npm.cmd`, gerektiğinde `npx.cmd` kullan. Sistem çalıştırma ilkesini değiştirmek gerekmez.                                                                                                                                                                                                             |
+| Prisma kimlik doğrulama, migration veya şema hatası | İlk `.env.docker` parolalarını koru. Bildirilen Prisma kodunu, migration adını ve container kimliğini incele. Sıfırlama, `db push`, uygulanmış migration'ı düzenleme veya veri birimi silme yapma. Gizli bilgileri çıkarılmış hata ayrıntılarıyla yardım iste.                                         |
+| Ön yüz veya API başlamıyor                          | `npm.cmd ci` ve `local:setup` işlemlerinin tamamlandığını, Docker sunucu sürümü kontrolünün geçtiğini ve portların boş olduğunu doğrula. Proje kökünden `npm.cmd run local:dev` başlat; iki sürecin çıktısını da incele.                                                                               |
+| İmaj veya paket indirilemiyor                       | Docker kayıt deposuna veya npm'e ağ/proxy erişimini kontrol et; bağlantı düzeldikten sonra aynı komutu tekrarla. Ağ hatasını çözmek için kilit dosyasını veya veritabanı parolalarını değiştirme.                                                                                                      |
+| Dinleme sesi yok                                    | Varsayılan kurulum Azure'u kapatır. Tarayıcı yedeği kullanılabilir bir İngilizce ses gerektirir; ses yoksa arayüzdeki ses kullanılamıyor akışını kullan.                                                                                                                                               |
 
 Destek isterken gerçek ortam dosyalarını, sansürlenmemiş Docker inceleme çıktısını, veritabanı adreslerini veya kişisel kelimelerini paylaşma. Olağan bir çözüm olarak Docker veri birimlerini silme veya veritabanlarını sıfırlama.

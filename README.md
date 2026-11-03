@@ -114,7 +114,7 @@ Open [the application](http://127.0.0.1:5173/). The database initially contains 
 
 `local:setup` creates an ignored `.env.docker` with random passwords only when that file is absent. It generates Prisma Client, applies the ten versioned migrations and verifies thirteen model tables. Defaults are web port **5173**, API port **3000** and PostgreSQL port **5433**, all on loopback.
 
-**If another checkout already uses this Docker setup on the same computer, stop before setup.** A new folder does not create a new Docker identity. Follow the [second-checkout instructions](docs/INSTALL_WINDOWS.md#second-checkout-on-the-same-computer) to use a distinct Compose project, ports and named volume.
+**If another checkout already uses this Docker setup on the same computer, stop before setup.** A new folder does not create a new Docker identity. Follow the [second-checkout instructions](docs/LOCAL_DEVELOPMENT.md#second-checkout-on-the-same-computer) to use a distinct Compose project, ports and named volume.
 
 Press **Ctrl+C** to stop the application. Then, from this checkout:
 

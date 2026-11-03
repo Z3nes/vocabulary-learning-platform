@@ -130,42 +130,14 @@ npm.cmd ci
 
 `ci` installs the versions in `package-lock.json`. It requires network access on a fresh machine. We use `npm.cmd` because PowerShell may block `npm.ps1` under its execution policy. You do not need to weaken the execution policy or run `Set-ExecutionPolicy` for these commands.
 
-If another checkout uses the local Docker setup on this computer, complete the next section **before** `local:setup`. Otherwise continue to section 9.
-
 <a id="second-checkout-on-the-same-computer"></a>
 
-## 8. Second checkout on the same computer
+> [!IMPORTANT]
+> **Installing this project for the first time on this computer?** Continue directly to section 8.
+>
+> **Does another checkout of this project already use the local Docker setup on this computer?** Stop here. A new folder does not create a separate database; both checkouts can target the same container and data. Configure an isolated environment **before** running `local:setup` by following [Second checkout on the same computer](LOCAL_DEVELOPMENT.md#second-checkout-on-the-same-computer).
 
-The default Compose project is `vocabulary-local`, independent of the checkout directory. Reusing that name can target the same container and volume. Do not copy another checkout's real `.env.docker` or use its passwords.
-
-Inspect existing names and occupied ports without printing container environments:
-
-```powershell
-docker ps -a --format '{{.Names}}'
-docker volume ls --format '{{.Name}}'
-Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 5434,3001,5174 }
-```
-
-The example below is suitable only if the `vocabulary-local-second` project/volume and those ports are unused. Otherwise choose another permitted project suffix and three free ports. Run it in the **new** checkout; it refuses to replace an existing `.env.docker`:
-
-```powershell
-if (Test-Path -LiteralPath .\.env.docker) { throw 'Existing .env.docker: inspect it privately before continuing.' }
-$localConfig = Get-Content -LiteralPath .\.env.docker.example -Raw
-$localConfig = $localConfig.Replace('LOCAL_COMPOSE_PROJECT=vocabulary-local', 'LOCAL_COMPOSE_PROJECT=vocabulary-local-second')
-$localConfig = $localConfig.Replace('LOCAL_POSTGRES_PORT=5433', 'LOCAL_POSTGRES_PORT=5434')
-$localConfig = $localConfig.Replace('LOCAL_API_PORT=3000', 'LOCAL_API_PORT=3001')
-$localConfig = $localConfig.Replace('LOCAL_WEB_PORT=5173', 'LOCAL_WEB_PORT=5174')
-$localMigratorPassword = node -p "require('node:crypto').randomBytes(32).toString('hex')"
-$localAppPassword = node -p "require('node:crypto').randomBytes(32).toString('hex')"
-$localConfig = $localConfig.Replace('REPLACE_MIGRATOR_PASSWORD', $localMigratorPassword)
-$localConfig = $localConfig.Replace('REPLACE_APP_PASSWORD', $localAppPassword)
-$localConfig | Set-Content -LiteralPath .\.env.docker -Encoding ascii
-Remove-Variable localConfig,localMigratorPassword,localAppPassword
-```
-
-This creates a separate container and `vocabulary-local-second_postgres-data` volume when setup runs. Database names remain `vocabulary_local` and `vocabulary_local_test` **inside that separate PostgreSQL server**. They are not configurable names for an existing host database. The helper checks labels, credentials, port binding and named storage before applying migrations. A mismatch is a reason to stop and inspect, not to delete a container or volume.
-
-## 9. Set up the database and start the application
+## 8. Set up the database and start the application
 
 Keep Docker Desktop running:
 
@@ -191,7 +163,7 @@ These lines describe expected output, not an installation screenshot. A migratio
 [local] Local demo identity only. Web: http://127.0.0.1:5173/
 ```
 
-Open [the dashboard](http://127.0.0.1:5173/), create a list and add your own words. For the second-checkout example, use port **5174** instead. In another PowerShell window, these default-port checks confirm the servers:
+Open [the dashboard](http://127.0.0.1:5173/), create a list and add your own words. In another PowerShell window, these default-port checks confirm the servers:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:3000/api/health
@@ -200,7 +172,7 @@ Invoke-RestMethod http://127.0.0.1:5173/api/health/db
 
 Expect `status: ok` and `database: reachable`. Use your configured ports if changed. The `/dev/status` page also displays local API/database status. Do not send these requests to an unrelated program occupying the default ports.
 
-## 10. Stop and restart
+## 9. Stop and restart
 
 Press **Ctrl+C** in the window running `local:dev` to stop web/API processes. Then run from the same checkout:
 
@@ -217,24 +189,24 @@ npm.cmd run local:dev
 
 If the database is still running and the schema is current, `local:dev` is sufficient. Use the same checkout/configuration for stopping and restarting.
 
-## 11. Tests
+## 10. Tests
 
 See [README testing commands](../README.md#testing). Unit tests do not need a running database after Prisma Client has been generated. `npm.cmd run local:test:integration` requires your own verified Docker environment and uses its dedicated test database. Never substitute a personal database connection for a test target.
 
-## 12. Troubleshooting
+## 11. Troubleshooting
 
-| Problem                                          | What to check                                                                                                                                                                                                                       |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Wrong Node version / `EBADENGINE`                | Run `node --version` and `Get-Command node`. Select Node 24.x ≥24.11.0, reopen PowerShell and retry `npm.cmd ci`. Do not disable `engine-strict`.                                                                                   |
-| Git clone permission denied                      | Confirm `Get-Location` is your home directory. For an authentication error, confirm access to the repository and use normal GitHub sign-in. Do not elevate Git just to write into a system folder.                                  |
-| Docker command not found                         | Finish Docker Desktop installation, reopen PowerShell and run `Get-Command docker`. Use the official installer if WinGet was unavailable.                                                                                           |
-| Docker Engine will not start                     | Open Docker Desktop, inspect its error, verify WSL status and hardware virtualization, and complete requested restarts. Check the official Docker troubleshooting information; do not factory-reset or delete data as a first step. |
-| WSL missing or incomplete                        | Run `wsl --version` and `wsl --status`; use Administrator PowerShell for `wsl --install --no-distribution` when absent. Update an existing WSL with `wsl --update`, and restart if requested.                                       |
-| Port 5433, 3000 or 5173 already occupied         | Identify the owning program. For a new isolated checkout use section 8 with a distinct project, volume and unused ports. Do not stop an unknown database or change the ports of a populated container blindly.                      |
-| `npm.ps1` cannot be loaded                       | Use `npm.cmd` (and `npx.cmd` when needed). No system execution-policy change is required.                                                                                                                                           |
-| Prisma authentication, migration or schema error | Keep the original `.env.docker` passwords. Review the reported Prisma code, migration name and container identity. Do not reset, run `db push`, edit applied migrations or remove a volume. Seek help with redacted error details.  |
-| Frontend or API does not start                   | Confirm `npm.cmd ci` and `local:setup` completed, Docker's server-version check succeeds, and the configured ports are free. Start with `npm.cmd run local:dev` from the project root; inspect both process outputs.                |
-| Image download or package download fails         | Check network/proxy access to Docker's registry or npm; retry the same command after fixing connectivity. Do not change the lockfile or database credentials as a network workaround.                                               |
-| No listening audio                               | The default setup disables Azure. Browser fallback requires a usable English voice; use the UI's unavailable-audio flow if the browser has none.                                                                                    |
+| Problem                                          | What to check                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrong Node version / `EBADENGINE`                | Run `node --version` and `Get-Command node`. Select Node 24.x ≥24.11.0, reopen PowerShell and retry `npm.cmd ci`. Do not disable `engine-strict`.                                                                                                                                                              |
+| Git clone permission denied                      | Confirm `Get-Location` is your home directory. For an authentication error, confirm access to the repository and use normal GitHub sign-in. Do not elevate Git just to write into a system folder.                                                                                                             |
+| Docker command not found                         | Finish Docker Desktop installation, reopen PowerShell and run `Get-Command docker`. Use the official installer if WinGet was unavailable.                                                                                                                                                                      |
+| Docker Engine will not start                     | Open Docker Desktop, inspect its error, verify WSL status and hardware virtualization, and complete requested restarts. Check the official Docker troubleshooting information; do not factory-reset or delete data as a first step.                                                                            |
+| WSL missing or incomplete                        | Run `wsl --version` and `wsl --status`; use Administrator PowerShell for `wsl --install --no-distribution` when absent. Update an existing WSL with `wsl --update`, and restart if requested.                                                                                                                  |
+| Port 5433, 3000 or 5173 already occupied         | Identify the owning program. For an additional isolated checkout, follow the [second-checkout instructions](LOCAL_DEVELOPMENT.md#second-checkout-on-the-same-computer) with a distinct project, volume and unused ports. Do not stop an unknown database or change the ports of a populated container blindly. |
+| `npm.ps1` cannot be loaded                       | Use `npm.cmd` (and `npx.cmd` when needed). No system execution-policy change is required.                                                                                                                                                                                                                      |
+| Prisma authentication, migration or schema error | Keep the original `.env.docker` passwords. Review the reported Prisma code, migration name and container identity. Do not reset, run `db push`, edit applied migrations or remove a volume. Seek help with redacted error details.                                                                             |
+| Frontend or API does not start                   | Confirm `npm.cmd ci` and `local:setup` completed, Docker's server-version check succeeds, and the configured ports are free. Start with `npm.cmd run local:dev` from the project root; inspect both process outputs.                                                                                           |
+| Image download or package download fails         | Check network/proxy access to Docker's registry or npm; retry the same command after fixing connectivity. Do not change the lockfile or database credentials as a network workaround.                                                                                                                          |
+| No listening audio                               | The default setup disables Azure. Browser fallback requires a usable English voice; use the UI's unavailable-audio flow if the browser has none.                                                                                                                                                               |
 
 Do not post real environment files, unredacted Docker inspection output, database URLs or personal vocabulary in support requests. Never delete Docker volumes or reset databases as a routine fix.

@@ -114,7 +114,7 @@ Depo özel olduğu sürece klonlamak için erişim iznin gerekir. Klonlama adres
 
 `local:setup`, yalnızca dosya yoksa rastgele parolalar içeren ve Git tarafından dışlanan `.env.docker` dosyasını oluşturur. Prisma Client'ı üretir, on sürümlü migration'ı uygular ve on üç model tablosunu doğrular. Varsayılan portlar web için **5173**, API için **3000**, PostgreSQL için **5433** olup yalnızca yerel bilgisayara bağlanır.
 
-**Aynı bilgisayardaki başka bir proje kopyası bu Docker kurulumunu kullanıyorsa kuruluma başlamadan dur.** Yeni klasör, yeni Docker kimliği oluşturmaz. Ayrı Compose projesi, portlar ve veri birimi kullanmak için [ikinci kopya yönergelerini](docs/INSTALL_WINDOWS.tr.md#ayni-bilgisayarda-ikinci-kopya) izle.
+**Aynı bilgisayardaki başka bir proje kopyası bu Docker kurulumunu kullanıyorsa kuruluma başlamadan dur.** Yeni klasör, yeni Docker kimliği oluşturmaz. Ayrı Compose projesi, portlar ve veri birimi kullanmak için [ikinci kopya yönergelerini](docs/LOCAL_DEVELOPMENT.md#ayni-bilgisayarda-ikinci-kopya) izle.
 
 Uygulamayı durdurmak için **Ctrl+C** kullan. Ardından bu proje klasöründe:
 
