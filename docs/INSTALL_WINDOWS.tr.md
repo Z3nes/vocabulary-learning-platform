@@ -120,7 +120,7 @@ Get-Location
 
 Oluşan klasör kendi kullanıcı klasörünün içinde olmalıdır. `C:\Windows\System32` içine klonlama. Hedef klasör zaten varsa içeriğini incele veya başka boş bir klasör seç; klonlama başarılı olsun diye mevcut proje kopyasını silme. Depo özel olduğu sürece erişim iznin gerekir. GitHub'ın normal giriş akışını kullan ve adrese token ekleme.
 
-#### 7. Proje bağımlılıklarını kur
+## 7. Proje bağımlılıklarını kur
 
 Bir önceki adımda `vocabulary-learning-platform` klasörüne geçtik. PowerShell terminalinin bu klasörde açık olduğundan emin ol.
 
