@@ -120,19 +120,23 @@ Get-Location
 
 Oluşan klasör kendi kullanıcı klasörünün içinde olmalıdır. `C:\Windows\System32` içine klonlama. Hedef klasör zaten varsa içeriğini incele veya başka boş bir klasör seç; klonlama başarılı olsun diye mevcut proje kopyasını silme. Depo özel olduğu sürece erişim iznin gerekir. GitHub'ın normal giriş akışını kullan ve adrese token ekleme.
 
-## 7. Proje bağımlılıklarını kur
+#### 7. Proje bağımlılıklarını kur
 
-`package.json` dosyasının bulunduğu klasörde çalıştır:
+Bir önceki adımda `vocabulary-learning-platform` klasörüne geçtik. PowerShell terminalinin bu klasörde açık olduğundan emin ol.
+
+Bulunduğun klasörü kontrol etmek için:
+
+```powershell
+Get-Location
+```
+
+Ardından proje için gerekli bağımlılıkları yükle:
 
 ```powershell
 npm.cmd ci
 ```
 
-`ci`, `package-lock.json` içindeki sürümleri kurar. İlk kurulumda ağ erişimi gerekir. PowerShell, çalıştırma ilkesi nedeniyle `npm.ps1` dosyasını engelleyebildiği için `npm.cmd` kullanıyoruz. Bu komutlar için çalıştırma ilkesini gevşetmen veya `Set-ExecutionPolicy` çalıştırman gerekmez.
-
-Aynı bilgisayardaki başka bir proje kopyası yerel Docker kurulumunu kullanıyorsa `local:setup` komutundan **önce** sonraki bölümü tamamla. Aksi hâlde 9. bölüme geç.
-
-<a id="ayni-bilgisayarda-ikinci-kopya"></a>
+Bu komut, projenin `package-lock.json` dosyasında belirtilen bağımlılıkları kurar. İlk kurulumda internet bağlantısı gereklidir.
 
 ## 8. Aynı bilgisayarda ikinci kopya
 
